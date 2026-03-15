@@ -4,17 +4,18 @@ import { adminSupabase } from '@/lib/supabase/admin'
 import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
 
-// Lazy singleton — deferred to first request so build-time evaluation
-// with placeholder env vars doesn't throw.
+// Lazy singleton — only initialised when Upstash env vars are present.
 let _ratelimit: Ratelimit | null = null
-function getRatelimit(): Ratelimit {
-  if (!_ratelimit) {
-    _ratelimit = new Ratelimit({
-      redis: Redis.fromEnv(),
-      limiter: Ratelimit.slidingWindow(5, '1 m'),
-      prefix: 'caldrop:analytics',
-    })
-  }
+function getRatelimit(): Ratelimit | null {
+  if (_ratelimit) return _ratelimit
+  const url = process.env.UPSTASH_REDIS_REST_URL
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN
+  if (!url || !token || url === 'your_upstash_url') return null
+  _ratelimit = new Ratelimit({
+    redis: new Redis({ url, token }),
+    limiter: Ratelimit.slidingWindow(5, '1 m'),
+    prefix: 'caldrop:analytics',
+  })
   return _ratelimit
 }
 
@@ -32,9 +33,12 @@ export async function POST(req: Request) {
   if (!VALID_TYPES.includes(type)) return new NextResponse(null, { status: 204 })
   if (platform && !VALID_PLATFORMS.includes(platform)) return new NextResponse(null, { status: 204 })
 
-  // Rate limit per IP per event
-  const { success } = await getRatelimit().limit(`${ip}:${event_id}`)
-  if (!success) return new NextResponse(null, { status: 429 })
+  // Rate limit per IP per event (skipped when Upstash is not configured)
+  const ratelimit = getRatelimit()
+  if (ratelimit) {
+    const { success } = await ratelimit.limit(`${ip}:${event_id}`)
+    if (!success) return new NextResponse(null, { status: 429 })
+  }
 
   // Validate event exists and is published
   const { data: event } = await adminSupabase
