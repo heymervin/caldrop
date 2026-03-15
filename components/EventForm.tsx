@@ -147,10 +147,19 @@ export function EventForm({ event }: EventFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [publishing, setPublishing] = useState(false)
   const [unpublishing, setUnpublishing] = useState(false)
+  const [sessionErrors, setSessionErrors] = useState<Record<number, string>>({})
 
   // -------------------------------------------------------------------------
   // Session helpers
   // -------------------------------------------------------------------------
+
+  function validateEndTime(index: number, start: string, end: string) {
+    if (start && end && end <= start) {
+      setSessionErrors(prev => ({ ...prev, [index]: 'End time must be after start time' }))
+    } else {
+      setSessionErrors(prev => { const next = { ...prev }; delete next[index]; return next })
+    }
+  }
 
   function updateSession(index: number, patch: Partial<SessionDraft>) {
     setSessions((prev) => prev.map((s, i) => (i === index ? { ...s, ...patch } : s)))
@@ -171,6 +180,12 @@ export function EventForm({ event }: EventFormProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+
+    if (Object.keys(sessionErrors).length > 0) {
+      setError('Please fix session time errors before saving.')
+      return
+    }
+
     setSaving(true)
     setError(null)
 
@@ -511,10 +526,17 @@ export function EventForm({ event }: EventFormProps) {
                     id={`session-end-${index}`}
                     type="datetime-local"
                     value={session.end_at}
-                    onChange={(e) => updateSession(index, { end_at: e.target.value })}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      updateSession(index, { end_at: value })
+                      validateEndTime(index, session.start_at, value)
+                    }}
                     required
                     className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                   />
+                  {sessionErrors[index] && (
+                    <p className="text-xs text-destructive">{sessionErrors[index]}</p>
+                  )}
                 </div>
               </div>
 
