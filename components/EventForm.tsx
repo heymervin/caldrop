@@ -181,7 +181,7 @@ export function EventForm({ event }: EventFormProps) {
           throw new Error(body.error ?? 'Failed to create event')
         }
         const created = await res.json()
-        router.push(`/events/${created.id}/edit`)
+        router.push(`/events/${created.id}/share`)
         return
       }
 
