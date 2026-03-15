@@ -5,6 +5,7 @@ import { TrackView } from '@/components/TrackView'
 import { EventTime } from '@/components/EventTime'
 import { CalendarButtons } from '@/components/CalendarButtons'
 import type { EventWithSessions } from '@/types/caldrop'
+import { ShareEventButton } from '@/components/ShareEventButton'
 
 type Params = { params: Promise<{ slug: string }> }
 
@@ -86,6 +87,10 @@ export default async function PublicEventPage({ params }: Params) {
           {typedEvent.description && (
             <p className="text-muted-foreground leading-relaxed">{typedEvent.description}</p>
           )}
+          <ShareEventButton
+            url={`${process.env.NEXT_PUBLIC_APP_URL ?? ''}/e/${typedEvent.slug}`}
+            title={typedEvent.title}
+          />
         </div>
 
         {isSingleSession ? (
