@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import type { EventWithSessions } from '@/types/caldrop'
+import { ShareEvent } from '@/components/ShareEvent'
 
 // ---------------------------------------------------------------------------
 // Datetime helpers
@@ -363,16 +364,12 @@ export function EventForm({ event }: EventFormProps) {
       </div>
 
       {isEdit && event.status === 'published' && (
-        <div className="rounded-lg bg-muted px-4 py-3 text-sm">
-          <span className="text-muted-foreground">Public URL: </span>
-          <a
-            href={`/e/${event.slug}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-mono text-primary underline-offset-4 hover:underline"
-          >
-            /e/{event.slug}
-          </a>
+        <div className="rounded-lg border px-4 py-4 space-y-2">
+          <p className="text-sm font-medium">Share this event</p>
+          <ShareEvent
+            url={`${process.env.NEXT_PUBLIC_APP_URL ?? ''}/e/${event.slug}`}
+            title={event.title}
+          />
         </div>
       )}
 
