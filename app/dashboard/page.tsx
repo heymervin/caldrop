@@ -6,26 +6,26 @@ import { buttonVariants } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
-type SessionCountRow = { count: number }[]
 type EventRow = {
   id: string
   slug: string
   title: string
   status: 'draft' | 'published'
   created_at: string
-  sessions: SessionCountRow
 }
 
 export default async function DashboardPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError) console.error('[dashboard] auth error:', authError.message)
   if (!user) redirect('/login')
 
-  const { data: events } = await supabase
+  const { data: events, error: eventsError } = await supabase
     .from('events')
-    .select('id, slug, title, status, created_at, sessions(count)')
+    .select('id, slug, title, status, created_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
+  if (eventsError) console.error('[dashboard] events error:', eventsError.message, eventsError.code)
 
   const rows = (events ?? []) as EventRow[]
 
@@ -48,7 +48,6 @@ export default async function DashboardPage() {
       ) : (
         <ul className="space-y-3">
           {rows.map((event) => {
-            const sessionCount = event.sessions?.[0]?.count ?? 0
             const formattedDate = new Date(event.created_at).toLocaleDateString('en-US', {
               year: 'numeric',
               month: 'short',
@@ -68,7 +67,7 @@ export default async function DashboardPage() {
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {sessionCount} {sessionCount === 1 ? 'session' : 'sessions'} &middot; Created {formattedDate}
+                    Created {formattedDate}
                   </p>
                 </div>
 
