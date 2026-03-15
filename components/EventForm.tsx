@@ -98,6 +98,21 @@ const TIMEZONES = [
   'Australia/Sydney',
 ]
 
+const DURATION_OPTIONS = [
+  { label: '30 min', minutes: 30 },
+  { label: '1 hr',   minutes: 60 },
+  { label: '1.5 hr', minutes: 90 },
+  { label: '2 hr',   minutes: 120 },
+  { label: '3 hr',   minutes: 180 },
+]
+
+function addMinutes(datetimeLocal: string, minutes: number): string {
+  const ms = new Date(datetimeLocal + ':00Z').getTime() + minutes * 60_000
+  const d = new Date(ms)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`
+}
+
 function emptySession(): SessionDraft {
   return { _key: crypto.randomUUID(), title: '', start_at: '', end_at: '', meeting_url: '' }
 }
@@ -456,7 +471,7 @@ export function EventForm({ event }: EventFormProps) {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
                 <div className="space-y-1.5">
                   <Label htmlFor={`session-start-${index}`}>
                     Start <span className="text-destructive">*</span>
@@ -470,6 +485,24 @@ export function EventForm({ event }: EventFormProps) {
                     className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                   />
                 </div>
+
+                {session.start_at && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {DURATION_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.minutes}
+                        type="button"
+                        onClick={() => updateSession(index, {
+                          end_at: addMinutes(session.start_at, opt.minutes),
+                        })}
+                        className="rounded-md border border-input px-2.5 py-1 text-xs hover:bg-muted transition-colors"
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 <div className="space-y-1.5">
                   <Label htmlFor={`session-end-${index}`}>
                     End <span className="text-destructive">*</span>
