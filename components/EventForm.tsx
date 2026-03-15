@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import type { EventWithSessions } from '@/types/caldrop'
 import { ShareEvent } from '@/components/ShareEvent'
+import { TimezoneSelect } from '@/components/TimezoneSelect'
 
 // ---------------------------------------------------------------------------
 // Datetime helpers
@@ -127,7 +128,10 @@ export function EventForm({ event }: EventFormProps) {
 
   const [title, setTitle] = useState(event?.title ?? '')
   const [description, setDescription] = useState(event?.description ?? '')
-  const [timezone, setTimezone] = useState(event?.timezone ?? 'UTC')
+  const [timezone, setTimezone] = useState(() => {
+    if (event?.timezone) return event.timezone
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone } catch { return 'UTC' }
+  })
 
   const [sessions, setSessions] = useState<SessionDraft[]>(() => {
     if (event?.sessions?.length) {
@@ -435,19 +439,8 @@ export function EventForm({ event }: EventFormProps) {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="timezone">Timezone</Label>
-          <select
-            id="timezone"
-            value={timezone}
-            onChange={(e) => setTimezone(e.target.value)}
-            className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-          >
-            {TIMEZONES.map((tz) => (
-              <option key={tz} value={tz}>
-                {tz}
-              </option>
-            ))}
-          </select>
+          <Label>Timezone</Label>
+          <TimezoneSelect value={timezone} onChange={setTimezone} />
         </div>
       </section>
 
