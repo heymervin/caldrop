@@ -27,7 +27,42 @@ function safeUrl(url: string | null): string | null {
 export async function generateMetadata({ params }: Params) {
   const { slug } = await params
   const event = await getEvent(slug)
-  return { title: `${event?.title ?? 'Event'} — CalDrop` }
+  if (!event) return { title: 'Event not found — CalDrop' }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
+  const firstSession = (event as EventWithSessions).sessions?.[0]
+  const dateStr = firstSession
+    ? new Date(firstSession.start_at).toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        timeZone: event.timezone,
+      })
+    : ''
+
+  const description =
+    event.description ??
+    (dateStr
+      ? `Join us on ${dateStr}. Add to your calendar with one click.`
+      : 'Add this event to your calendar.')
+
+  return {
+    title: `${event.title} — CalDrop`,
+    description,
+    openGraph: {
+      title: event.title,
+      description,
+      url: `${appUrl}/e/${slug}`,
+      type: 'website',
+      siteName: 'CalDrop',
+    },
+    twitter: {
+      card: 'summary',
+      title: event.title,
+      description,
+    },
+  }
 }
 
 export default async function PublicEventPage({ params }: Params) {
