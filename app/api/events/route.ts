@@ -46,6 +46,7 @@ export async function POST(req: Request) {
       timezone: timezone || 'UTC',
       slug,
       user_id: user.id,
+      status: 'published',
     })
     .select()
     .single()
