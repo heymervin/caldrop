@@ -1,11 +1,11 @@
 import { cache } from 'react'
 import { notFound } from 'next/navigation'
+import { Calendar, MapPin, Globe } from 'lucide-react'
 import { adminSupabase } from '@/lib/supabase/admin'
 import { TrackView } from '@/components/TrackView'
-import { EventTime } from '@/components/EventTime'
 import { CalendarButtons } from '@/components/CalendarButtons'
-import type { EventWithSessions } from '@/types/caldrop'
 import { ShareEventButton } from '@/components/ShareEventButton'
+import type { EventWithSessions, Session } from '@/types/caldrop'
 
 type Params = { params: Promise<{ slug: string }> }
 
@@ -23,6 +23,25 @@ const getEvent = cache(async (slug: string) => {
 function safeUrl(url: string | null): string | null {
   if (!url) return null
   return url.startsWith('https://') || url.startsWith('http://') ? url : null
+}
+
+function formatSessionTime(session: Session, timezone: string) {
+  const dateFmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+  const timeFmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })
+  const start = new Date(session.start_at)
+  const end = new Date(session.end_at)
+  return `${dateFmt.format(start)}, ${timeFmt.format(start)} – ${timeFmt.format(end)}`
 }
 
 export async function generateMetadata({ params }: Params) {
@@ -68,141 +87,129 @@ export async function generateMetadata({ params }: Params) {
 
 export default async function PublicEventPage({ params }: Params) {
   const { slug } = await params
-
   const event = await getEvent(slug)
-
   if (!event) notFound()
 
   const typedEvent = event as EventWithSessions
   const isSingleSession = typedEvent.sessions.length === 1
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
+
+  // Timezone abbreviation for the badge
+  const tzParts = new Intl.DateTimeFormat('en-US', {
+    timeZone: typedEvent.timezone,
+    timeZoneName: 'shortOffset',
+  }).formatToParts(new Date())
+  const tzOffset = tzParts.find(p => p.type === 'timeZoneName')?.value ?? typedEvent.timezone
+  const tzShort = new Intl.DateTimeFormat('en-US', {
+    timeZone: typedEvent.timezone,
+    timeZoneName: 'short',
+  }).formatToParts(new Date()).find(p => p.type === 'timeZoneName')?.value ?? typedEvent.timezone
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="mx-auto max-w-[600px] px-4 py-12 space-y-8">
-        <TrackView eventId={typedEvent.id} />
+      <TrackView eventId={typedEvent.id} />
+      <main className="mx-auto max-w-[640px] px-4 py-10 space-y-5">
 
-        {/* Event header */}
-        <div className="space-y-3">
-          <h1 className="text-3xl font-bold tracking-tight">{typedEvent.title}</h1>
-          {typedEvent.description && (
-            <p className="text-muted-foreground leading-relaxed">{typedEvent.description}</p>
-          )}
-          <ShareEventButton
-            url={`${process.env.NEXT_PUBLIC_APP_URL ?? ''}/e/${typedEvent.slug}`}
-            title={typedEvent.title}
-          />
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4">
+          <h1 className="text-2xl font-bold tracking-tight leading-snug">
+            {typedEvent.title}
+          </h1>
+          <div className="shrink-0 flex items-center gap-1.5 rounded-full border border-input px-3 py-1.5 text-xs text-muted-foreground whitespace-nowrap">
+            <Globe className="size-3" />
+            <span className="hidden sm:inline">Time shown in</span>
+            <span className="font-medium text-foreground">{tzShort} / {tzOffset}</span>
+          </div>
         </div>
 
-        {isSingleSession ? (
-          // Single-session layout
-          <div className="space-y-6">
-            <div className="rounded-xl border bg-card p-6 space-y-4">
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                  When
-                </p>
-                <p className="text-base font-medium">
-                  <EventTime
-                    startsAt={typedEvent.sessions[0].start_at}
-                    endsAt={typedEvent.sessions[0].end_at}
-                    timezone={typedEvent.timezone}
-                  />
-                </p>
-              </div>
-
-              {safeUrl(typedEvent.sessions[0].meeting_url) ? (
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                    Where
-                  </p>
-                  <a
-                    href={safeUrl(typedEvent.sessions[0].meeting_url)!}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-base text-primary underline-offset-4 hover:underline break-all"
-                  >
-                    {typedEvent.sessions[0].meeting_url}
-                  </a>
-                </div>
-              ) : typedEvent.sessions[0].meeting_url ? (
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                    Where
-                  </p>
-                  <p className="text-base break-all">{typedEvent.sessions[0].meeting_url}</p>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-muted-foreground">Add to calendar</p>
-              <CalendarButtons event={typedEvent} session={typedEvent.sessions[0]} />
-            </div>
-          </div>
-        ) : (
-          // Multi-session layout
-          <div className="space-y-6">
-            {typedEvent.sessions.map((session) => (
-              <div key={session.id} className="rounded-xl border bg-card p-6 space-y-4">
-                <h2 className="text-lg font-semibold">
-                  {session.title || typedEvent.title}
-                </h2>
-
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                    When
-                  </p>
-                  <p className="text-base">
-                    <EventTime
-                      startsAt={session.start_at}
-                      endsAt={session.end_at}
-                      timezone={typedEvent.timezone}
-                    />
-                  </p>
-                </div>
-
-                {safeUrl(session.meeting_url) ? (
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                      Where
-                    </p>
-                    <a
-                      href={safeUrl(session.meeting_url)!}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-base text-primary underline-offset-4 hover:underline break-all"
-                    >
-                      {session.meeting_url}
-                    </a>
-                  </div>
-                ) : session.meeting_url ? (
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                      Where
-                    </p>
-                    <p className="text-base break-all">{session.meeting_url}</p>
-                  </div>
-                ) : null}
-
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">Add to calendar</p>
-                  <CalendarButtons event={typedEvent} session={session} />
-                </div>
-              </div>
-            ))}
-
-            {/* Add all sessions */}
-            <div className="rounded-xl border bg-muted/40 p-6 space-y-3">
-              <h2 className="text-base font-semibold">Add all sessions</h2>
-              <CalendarButtons event={typedEvent} />
-            </div>
-          </div>
+        {typedEvent.description && (
+          <p className="text-muted-foreground leading-relaxed text-sm">
+            {typedEvent.description}
+          </p>
         )}
 
+        {/* Add to calendar */}
+        <div className="rounded-xl border bg-card p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <Calendar className="size-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold">
+              {isSingleSession ? 'Add to Calendar' : 'Subscribe to Calendar'}
+            </h2>
+          </div>
+
+          <CalendarButtons
+            event={typedEvent}
+            session={isSingleSession ? typedEvent.sessions[0] : undefined}
+          />
+
+          {!isSingleSession && (
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              By subscribing to this calendar, you&apos;ll receive all sessions in one go.
+              Each session can also be added individually below.
+            </p>
+          )}
+        </div>
+
+        {/* Sessions */}
+        <div className="space-y-3">
+          {typedEvent.sessions.map((session) => {
+            const timeStr = formatSessionTime(session, typedEvent.timezone)
+            const url = safeUrl(session.meeting_url)
+
+            return (
+              <div key={session.id} className="rounded-xl border bg-card overflow-hidden">
+                <div className="px-5 py-4 space-y-2.5">
+                  {!isSingleSession && session.title && (
+                    <p className="font-semibold text-sm">{session.title}</p>
+                  )}
+
+                  <div className="flex items-start gap-2.5 text-sm">
+                    <Calendar className="size-4 mt-px text-muted-foreground shrink-0" />
+                    <span>{timeStr}</span>
+                  </div>
+
+                  {url ? (
+                    <div className="flex items-start gap-2.5 text-sm">
+                      <MapPin className="size-4 mt-px text-muted-foreground shrink-0" />
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary underline-offset-4 hover:underline break-all"
+                      >
+                        {session.meeting_url}
+                      </a>
+                    </div>
+                  ) : session.meeting_url ? (
+                    <div className="flex items-start gap-2.5 text-sm">
+                      <MapPin className="size-4 mt-px text-muted-foreground shrink-0" />
+                      <span className="break-all text-muted-foreground">{session.meeting_url}</span>
+                    </div>
+                  ) : null}
+                </div>
+
+                {!isSingleSession && (
+                  <div className="border-t px-5 py-3 bg-muted/30">
+                    <p className="text-[11px] text-muted-foreground mb-2 uppercase tracking-wide font-medium">
+                      Add this session
+                    </p>
+                    <CalendarButtons event={typedEvent} session={session} variant="inline" />
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
         {/* Footer */}
-        <footer className="pt-4 border-t">
-          <p className="text-xs text-muted-foreground text-center">Powered by CalDrop</p>
-        </footer>
+        <div className="flex items-center justify-between pt-3 border-t">
+          <ShareEventButton
+            url={`${appUrl}/e/${typedEvent.slug}`}
+            title={typedEvent.title}
+          />
+          <p className="text-xs text-muted-foreground">Powered by CalDrop</p>
+        </div>
+
       </main>
     </div>
   )
