@@ -100,6 +100,20 @@ export default async function DashboardPage() {
           })}
         </ul>
       )}
+
+      <footer className="mt-12 pt-6 border-t text-center">
+        <p className="text-xs text-muted-foreground">
+          Want a custom app made for you?{' '}
+          <a
+            href="https://heymervin.me"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 hover:text-foreground transition-colors"
+          >
+            heymervin.me
+          </a>
+        </p>
+      </footer>
     </div>
   )
 }

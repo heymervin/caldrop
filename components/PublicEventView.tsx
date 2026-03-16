@@ -262,19 +262,8 @@ export function PublicEventView({ event, appUrl }: PublicEventViewProps) {
         <ShareEvent url={`${appUrl}/e/${event.slug}`} title={event.title} />
       </div>
 
-      <footer className="pt-1 text-center space-y-1">
+      <footer className="pt-1 text-center">
         <p className="text-xs text-muted-foreground">Powered by CalDrop</p>
-        <p className="text-xs text-muted-foreground">
-          Want a custom app made for you?{' '}
-          <a
-            href="https://heymervin.me"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline underline-offset-2 hover:text-foreground transition-colors"
-          >
-            heymervin.me
-          </a>
-        </p>
       </footer>
 
     </main>
